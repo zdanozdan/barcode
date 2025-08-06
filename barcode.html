@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner Kodów - Tylna Kamera</title>
+    <title>Skaner Kodów - Tylna Kamera (Poprawka)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -62,7 +62,7 @@
 <body>
 
     <h1>Skaner Kodów</h1>
-    <p>Kliknij "Start Skaner", aby rozpocząć.</p>
+    <p>Kliknij "Start Skaner", aby rozpocząć. Zawsze będzie używana tylna kamera.</p>
 
     <div id="video-container">
         <video id="scanner-video" playsinline autoplay muted></video>
@@ -82,40 +82,21 @@
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         
-        let rearCameraId = null; // Dodana zmienna do przechowywania ID kamery
-
-        function startScanner() {
-            // Sprawdź, czy już znamy ID tylnej kamery
-            if (rearCameraId) {
-                // Użyj zapisanego ID bez ponownego wyszukiwania
-                codeReader.decodeFromVideoDevice(rearCameraId, 'scanner-video', onScanResult);
-                updateUIForScanning();
-            } else {
-                // Jeśli to pierwsze uruchomienie, znajdź ID kamery
-                codeReader.getVideoInputDevices()
-                    .then((videoInputDevices) => {
-                        const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear'));
-                        
-                        // Zapisz znaleziony ID do globalnej zmiennej
-                        rearCameraId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-
-                        codeReader.decodeFromVideoDevice(rearCameraId, 'scanner-video', onScanResult);
-                        updateUIForScanning();
-                    })
-                    .catch((err) => {
-                        console.error('Błąd dostępu do kamery:', err);
-                        resultElement.textContent = 'Błąd: nie można uzyskać dostępu do kamery.';
-                        resultElement.style.color = '#f44336';
-                    });
-            }
+        // Funkcja do aktualizacji UI podczas skanowania
+        function updateUIForScanning() {
+            startButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+            resultElement.textContent = 'Skanowanie...';
+            resultElement.style.color = '#f0f0f0';
         }
 
+        // Funkcja do obsługi wyniku skanowania
         function onScanResult(result, err) {
             if (result) {
                 resultElement.textContent = `Zeskanowany kod: ${result.getText()}`;
                 resultElement.style.color = '#00ff00';
                 console.log('Zeskanowany kod:', result.getText());
-                stopScanner();
+                stopScanner(); // Zatrzymuje skaner po zeskanowaniu
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error('Błąd skanowania:', err);
@@ -124,19 +105,45 @@
             }
         }
 
-        function updateUIForScanning() {
-            startButton.style.display = 'none';
-            stopButton.style.display = 'inline-block';
-            resultElement.textContent = 'Skanowanie...';
-            resultElement.style.color = '#f0f0f0';
+        // Funkcja do uruchamiania skanera
+        function startScanner() {
+            // Używamy constraints, aby wymusić tylną kamerę
+            const constraints = {
+                video: {
+                    facingMode: { exact: 'environment' } // Wymusza tylną kamerę
+                },
+                audio: false // Nie potrzebujemy audio
+            };
+
+            codeReader.decodeFromConstraints(constraints, 'scanner-video', onScanResult)
+                .then(() => {
+                    updateUIForScanning();
+                })
+                .catch((err) => {
+                    console.error('Błąd uruchamiania skanera:', err);
+                    if (err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
+                        resultElement.textContent = 'Błąd: Nie można uzyskać dostępu do tylnej kamery. Sprawdź uprawnienia lub spróbuj ponownie.';
+                    } else if (err.name === 'NotAllowedError') {
+                        resultElement.textContent = 'Błąd: Dostęp do kamery został odrzucony. Zezwól w ustawieniach przeglądarki.';
+                    } else {
+                        resultElement.textContent = 'Wystąpił nieznany błąd podczas dostępu do kamery.';
+                    }
+                    resultElement.style.color = '#f44336';
+                    // Przywróć przyciski, jeśli wystąpi błąd
+                    startButton.style.display = 'inline-block';
+                    stopButton.style.display = 'none';
+                });
         }
 
+        // Funkcja do zatrzymywania skanera
         function stopScanner() {
             codeReader.reset();
             startButton.style.display = 'inline-block';
             stopButton.style.display = 'none';
+            // Nie zmieniamy tekstu rezultatu, aby zeskanowany kod był widoczny
         }
 
+        // Dodanie nasłuchiwaczy zdarzeń do przycisków
         startButton.addEventListener('click', startScanner);
         stopButton.addEventListener('click', stopScanner);
 
