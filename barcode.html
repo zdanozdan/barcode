@@ -1,249 +1,96 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner Kodów - Wybór Kamery</title>
+    <title>JS Barcode & QR Code Scanner</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: sans-serif;
             text-align: center;
-            background-color: #1a1a1a;
-            color: #f0f0f0;
-            padding: 20px;
+            margin-top: 50px;
         }
-        #video-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            border: 2px solid #555;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        #scanner-video {
-            width: 100%;
-            height: auto;
-            display: block;
+        #reader {
+            width: 500px;
+            margin: 20px auto;
         }
         #result {
-            margin-top: 20px;
-            padding: 15px;
-            font-size: 1.1em;
             font-weight: bold;
-            background-color: #333;
-            border-radius: 10px;
-            word-wrap: break-word;
+            font-size: 1.2em;
         }
-        .controls-container {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-        .action-button {
-            padding: 12px 24px;
-            font-size: 1em;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
             cursor: pointer;
-            margin: 0 5px;
-        }
-        #startButton {
-            background-color: #4CAF50; /* Green */
-            color: white;
+            margin: 5px;
         }
         #stopButton {
-            background-color: #f44336; /* Red */
+            background-color: #f44336;
             color: white;
-            display: none; /* Initially hidden */
+            border: none;
         }
-        #cameraSelect {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #333;
-            color: #f0f0f0;
-            font-size: 1em;
-            width: 80%;
-            max-width: 300px;
-        }
-        label {
-            margin-bottom: 5px;
-            font-size: 0.9em;
+        #startButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
         }
     </style>
 </head>
 <body>
+    <h1>Simple Barcode & QR Code Scanner</h1>
+    <p>Tap "Start Scanning" and point your iPhone camera at a barcode or QR code.</p>
 
-    <h1>Skaner Kodów wybór kamery</h1>
-    <p>Wybierz kamerę, a następnie kliknij "Start Skaner".</p>
+    <div id="reader"></div>
 
-    <div id="video-container">
-        <video id="scanner-video" playsinline autoplay muted></video>
-    </div>
+    <button id="startButton">Start Scanning</button>
+    <button id="stopButton" style="display:none;">Stop Scanning</button>
 
-    <div class="controls-container">
-        <label for="cameraSelect">Wybierz kamerę:</label>
-        <select id="cameraSelect">
-            <!-- Opcje kamer zostaną dodane przez JavaScript -->
-        </select>
-        <div class="buttons-container">
-            <button id="startButton" class="action-button">Start Skaner</button>
-            <button id="stopButton" class="action-button">Stop Skaner</button>
-        </div>
-    </div>
-    
-    <p id="result">Gotowy do skanowania...</p>
+    <p>Scanned Code: <span id="result">No code scanned yet.</span></p>
 
-    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+
     <script>
-        const codeReader = new ZXing.BrowserMultiFormatReader();
-        const resultElement = document.getElementById('result');
+        // Function to handle a successful scan
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Code matched = ${decodedText}`, decodedResult);
+            document.getElementById('result').innerText = decodedText;
+
+            // Optional: Log the type of code found
+            console.log("Scanned format: " + decodedResult.result.format.formatName);
+        }
+
+        // Function to handle scan errors (optional)
+        function onScanFailure(error) {
+            // This is often triggered, so we'll just log it
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: { width: 250, height: 250 } },
+            /* verbose= */ false);
+
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
-        const cameraSelect = document.getElementById('cameraSelect');
-        
-        // Zmienna do przechowywania aktualnie wybranego ID kamery
-        let currentDeviceId = null; 
 
-        // Funkcja do aktualizacji UI podczas skanowania
-        function updateUIForScanning() {
+        startButton.addEventListener('click', () => {
+            // Start the scanner and hide the start button
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
             startButton.style.display = 'none';
-            stopButton.style.display = 'inline-block';
-            cameraSelect.disabled = true; // Wyłącz selektor podczas skanowania
-            resultElement.textContent = 'Skanowanie...';
-            resultElement.style.color = '#f0f0f0';
-        }
-
-        // Funkcja do obsługi wyniku skanowania
-        function onScanResult(result, err) {
-            if (result) {
-                resultElement.textContent = `Zeskanowany kod: ${result.getText()}`;
-                resultElement.style.color = '#00ff00';
-                console.log('Zeskanowany kod:', result.getText());
-                stopScanner(); // Zatrzymuje skaner po zeskanowaniu
-            }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                console.error('Błąd skanowania:', err);
-                resultElement.textContent = 'Wystąpił błąd podczas skanowania.';
-                resultElement.style.color = '#f44336';
-            }
-        }
-
-        // Funkcja do uruchamiania skanera
-        function startScanner() {
-            // Użyj aktualnie wybranego ID kamery z selektora
-            currentDeviceId = cameraSelect.value; 
-
-            if (!currentDeviceId) {
-                resultElement.textContent = 'Błąd: Proszę wybrać kamerę.';
-                resultElement.style.color = '#f44336';
-                return;
-            }
-
-            codeReader.decodeFromVideoDevice(currentDeviceId, 'scanner-video', onScanResult)
-                .then(() => {
-                    updateUIForScanning();
-                })
-                .catch((err) => {
-                    console.error('Błąd uruchamiania skanera:', err);
-                    handleCameraError(err);
-                });
-        }
-
-        // Funkcja do zatrzymywania skanera
-        function stopScanner() {
-            codeReader.reset();
-            startButton.style.display = 'inline-block';
-            stopButton.style.display = 'none';
-            cameraSelect.disabled = false; // Włącz selektor po zatrzymaniu
-            // Nie zmieniamy tekstu rezultatu, aby zeskanowany kod był widoczny
-        }
-
-        // Funkcja do obsługi błędów kamery
-        function handleCameraError(err) {
-            if (err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
-                resultElement.textContent = 'Błąd: Nie można uzyskać dostępu do kamery. Upewnij się, że nie jest używana przez inną aplikację.';
-            } else if (err.name === 'NotAllowedError') {
-                resultElement.textContent = 'Błąd: Dostęp do kamery został odrzucony. Zezwól w ustawieniach przeglądarki.';
-            } else if (err.name === 'NotFoundError') {
-                 resultElement.textContent = 'Błąd: Nie znaleziono kamery. Upewnij się, że urządzenie ma kamerę.';
-            }
-            else {
-                resultElement.textContent = 'Wystąpił nieznany błąd podczas dostępu do kamery.';
-            }
-            resultElement.style.color = '#f44336';
-            startButton.style.display = 'inline-block';
-            stopButton.style.display = 'none';
-            cameraSelect.disabled = false; // Włącz selektor w przypadku błędu
-        }
-
-        // Inicjalizacja: Pobierz listę kamer i wypełnij selektor
-        function initializeCameraSelection() {
-            codeReader.getVideoInputDevices()
-                .then((videoInputDevices) => {
-                    if (videoInputDevices.length === 0) {
-                        resultElement.textContent = 'Błąd: Brak dostępnych kamer.';
-                        resultElement.style.color = '#f44336';
-                        startButton.disabled = true;
-                        return;
-                    }
-
-                    // Wyczyść istniejące opcje
-                    cameraSelect.innerHTML = '';
-
-                    // Dodaj opcje dla każdej kamery
-                    videoInputDevices.forEach((device) => {
-                        const option = document.createElement('option');
-                        option.value = device.deviceId;
-                        // Użyj label, jeśli jest dostępny, w przeciwnym razie stwórz ogólną nazwę
-                        option.textContent = device.label || `Kamera ${videoInputDevices.indexOf(device) + 1}`;
-                        cameraSelect.appendChild(option);
-                    });
-
-                    // Spróbuj domyślnie wybrać tylną kamerę (jeśli etykieta zawiera "back", "rear" lub "environment")
-                    const backCamera = videoInputDevices.find(device => 
-                        device.label.toLowerCase().includes('back') || 
-                        device.label.toLowerCase().includes('rear') ||
-                        device.label.toLowerCase().includes('environment')
-                    );
-
-                    if (backCamera) {
-                        cameraSelect.value = backCamera.deviceId;
-                    } else {
-                        // Jeśli nie znaleziono tylnej kamery, wybierz pierwszą
-                        cameraSelect.value = videoInputDevices[0].deviceId;
-                    }
-                    currentDeviceId = cameraSelect.value; // Ustaw początkowe ID wybranej kamery
-                    resultElement.textContent = 'Gotowy do skanowania. Wybierz kamerę, jeśli to konieczne.';
-
-                })
-                .catch((err) => {
-                    console.error('Błąd inicjalizacji kamer:', err);
-                    resultElement.textContent = 'Błąd podczas ładowania listy kamer.';
-                    resultElement.style.color = '#f44336';
-                    startButton.disabled = true;
-                });
-        }
-
-        // Dodanie nasłuchiwaczy zdarzeń do przycisków
-        startButton.addEventListener('click', startScanner);
-        stopButton.addEventListener('click', stopScanner);
-        // Nasłuchuj zmian w selektorze kamery
-        cameraSelect.addEventListener('change', (event) => {
-            currentDeviceId = event.target.value;
-            resultElement.textContent = `Wybrano kamerę: ${event.target.options[event.target.selectedIndex].textContent}`;
-            resultElement.style.color = '#f0f0f0';
+            stopButton.style.display = 'block';
+            document.getElementById('result').innerText = "Scanning...";
         });
 
-        // Wywołaj inicjalizację po załadowaniu strony
-        initializeCameraSelection();
-
+        stopButton.addEventListener('click', () => {
+            // Stop the scanner and show the start button
+            html5QrcodeScanner.stop().then(() => {
+                console.log("Scanner stopped.");
+                startButton.style.display = 'block';
+                stopButton.style.display = 'none';
+                document.getElementById('result').innerText = "No code scanned yet.";
+            }).catch(err => {
+                console.log("Error stopping scanner: " + err);
+            });
+        });
     </script>
-
 </body>
 </html>
