@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner with Start Button</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            padding: 20px;
+        }
+        #video-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            border: 2px solid #555;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #scanner-video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            background-color: #333;
+            border-radius: 10px;
+            word-wrap: break-word;
+        }
+        .buttons-container {
+            margin-top: 20px;
+        }
+        .action-button {
+            padding: 12px 24px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        #startButton {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+        #stopButton {
+            background-color: #f44336; /* Red */
+            color: white;
+            display: none; /* Initially hidden */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Barcode Scanner</h1>
+    <p>Click "Start Scanner" to begin.</p>
+
+    <div id="video-container">
+        <video id="scanner-video" playsinline autoplay muted></video>
+    </div>
+
+    <div class="buttons-container">
+        <button id="startButton" class="action-button">Start Scanner</button>
+        <button id="stopButton" class="action-button">Stop Scanner</button>
+    </div>
+    
+    <p id="result">Ready to scan...</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+    <script>
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        const videoElement = document.getElementById('scanner-video');
+        const resultElement = document.getElementById('result');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+
+        function startScanner() {
+            codeReader.getVideoInputDevices()
+                .then((videoInputDevices) => {
+                    const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear'));
+                    const selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+
+                    codeReader.decodeFromVideoDevice(selectedDeviceId, 'scanner-video', (result, err) => {
+                        if (result) {
+                            resultElement.textContent = `Scanned code: ${result.getText()}`;
+                            resultElement.style.color = '#00ff00';
+                            console.log('Scanned code:', result.getText());
+                            stopScanner();
+                        }
+                        if (err && !(err instanceof ZXing.NotFoundException)) {
+                            console.error('Scanning error:', err);
+                            resultElement.textContent = 'An error occurred during scanning.';
+                            resultElement.style.color = '#f44336';
+                        }
+                    });
+
+                    startButton.style.display = 'none';
+                    stopButton.style.display = 'inline-block';
+                    resultElement.textContent = 'Scanning...';
+                    resultElement.style.color = '#f0f0f0';
+                })
+                .catch((err) => {
+                    console.error('Error getting video devices:', err);
+                    resultElement.textContent = 'Error: Could not access the camera. Please check your browser permissions.';
+                    resultElement.style.color = '#f44336';
+                });
+        }
+
+        function stopScanner() {
+            codeReader.reset();
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
+        }
+
+        startButton.addEventListener('click', startScanner);
+        stopButton.addEventListener('click', stopScanner);
+
+    </script>
+
+</body>
+</html>
