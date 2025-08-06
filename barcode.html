@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner Kodów - Tylna Kamera (Poprawka)</title>
+    <title>Skaner Kodów - Tylna Kamera (Poprawka 2)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -61,8 +61,8 @@
 </head>
 <body>
 
-    <h1>Skaner Kodów</h1>
-    <p>Kliknij "Start Skaner", aby rozpocząć. Zawsze będzie używana tylna kamera.</p>
+    <h1>Skaner Kodów P2</h1>
+    <p>Kliknij "Start Skaner", aby rozpocząć. Spróbuję zawsze użyć tylnej kamery.</p>
 
     <div id="video-container">
         <video id="scanner-video" playsinline autoplay muted></video>
@@ -82,6 +82,9 @@
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         
+        // Zmienna do przechowywania ID tylnej kamery po jej znalezieniu
+        let rearCameraDeviceId = null; 
+
         // Funkcja do aktualizacji UI podczas skanowania
         function updateUIForScanning() {
             startButton.style.display = 'none';
@@ -107,32 +110,44 @@
 
         // Funkcja do uruchamiania skanera
         function startScanner() {
-            // Używamy constraints, aby wymusić tylną kamerę
-            const constraints = {
-                video: {
-                    facingMode: { exact: 'environment' } // Wymusza tylną kamerę
-                },
-                audio: false // Nie potrzebujemy audio
-            };
+            // Jeśli już znamy ID tylnej kamery, użyjemy go bezpośrednio
+            if (rearCameraDeviceId) {
+                codeReader.decodeFromVideoDevice(rearCameraDeviceId, 'scanner-video', onScanResult)
+                    .then(() => {
+                        updateUIForScanning();
+                    })
+                    .catch((err) => {
+                        console.error('Błąd uruchamiania skanera z zapisanym ID:', err);
+                        handleCameraError(err);
+                    });
+            } else {
+                // W przeciwnym razie, znajdź kamery i wybierz tylną
+                codeReader.getVideoInputDevices()
+                    .then((videoInputDevices) => {
+                        // Spróbuj znaleźć kamerę z etykietą wskazującą na tylną
+                        const backCamera = videoInputDevices.find(device => 
+                            device.label.toLowerCase().includes('back') || 
+                            device.label.toLowerCase().includes('rear') ||
+                            device.label.toLowerCase().includes('environment') // Dodaj 'environment' do etykiet
+                        );
+                        
+                        // Jeśli znaleziono tylną kamerę, użyj jej ID. W przeciwnym razie, użyj pierwszej dostępnej.
+                        rearCameraDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-            codeReader.decodeFromConstraints(constraints, 'scanner-video', onScanResult)
-                .then(() => {
-                    updateUIForScanning();
-                })
-                .catch((err) => {
-                    console.error('Błąd uruchamiania skanera:', err);
-                    if (err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
-                        resultElement.textContent = 'Błąd: Nie można uzyskać dostępu do tylnej kamery. Sprawdź uprawnienia lub spróbuj ponownie.';
-                    } else if (err.name === 'NotAllowedError') {
-                        resultElement.textContent = 'Błąd: Dostęp do kamery został odrzucony. Zezwól w ustawieniach przeglądarki.';
-                    } else {
-                        resultElement.textContent = 'Wystąpił nieznany błąd podczas dostępu do kamery.';
-                    }
-                    resultElement.style.color = '#f44336';
-                    // Przywróć przyciski, jeśli wystąpi błąd
-                    startButton.style.display = 'inline-block';
-                    stopButton.style.display = 'none';
-                });
+                        codeReader.decodeFromVideoDevice(rearCameraDeviceId, 'scanner-video', onScanResult)
+                            .then(() => {
+                                updateUIForScanning();
+                            })
+                            .catch((err) => {
+                                console.error('Błąd uruchamiania skanera po wyszukiwaniu ID:', err);
+                                handleCameraError(err);
+                            });
+                    })
+                    .catch((err) => {
+                        console.error('Błąd pobierania urządzeń wideo:', err);
+                        handleCameraError(err);
+                    });
+            }
         }
 
         // Funkcja do zatrzymywania skanera
@@ -141,6 +156,23 @@
             startButton.style.display = 'inline-block';
             stopButton.style.display = 'none';
             // Nie zmieniamy tekstu rezultatu, aby zeskanowany kod był widoczny
+        }
+
+        // Funkcja do obsługi błędów kamery
+        function handleCameraError(err) {
+            if (err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
+                resultElement.textContent = 'Błąd: Nie można uzyskać dostępu do kamery. Upewnij się, że nie jest używana przez inną aplikację.';
+            } else if (err.name === 'NotAllowedError') {
+                resultElement.textContent = 'Błąd: Dostęp do kamery został odrzucony. Zezwól w ustawieniach przeglądarki.';
+            } else if (err.name === 'NotFoundError') {
+                 resultElement.textContent = 'Błąd: Nie znaleziono kamery. Upewnij się, że urządzenie ma kamerę.';
+            }
+            else {
+                resultElement.textContent = 'Wystąpił nieznany błąd podczas dostępu do kamery.';
+            }
+            resultElement.style.color = '#f44336';
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
         }
 
         // Dodanie nasłuchiwaczy zdarzeń do przycisków
