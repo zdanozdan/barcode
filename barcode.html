@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barcode Scanner with Start Button</title>
+    <title>Skaner Kodów - Tylna Kamera</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -61,58 +61,74 @@
 </head>
 <body>
 
-    <h1>Barcode Scanner</h1>
-    <p>Click "Start Scanner" to begin.</p>
+    <h1>Skaner Kodów</h1>
+    <p>Kliknij "Start Skaner", aby rozpocząć.</p>
 
     <div id="video-container">
         <video id="scanner-video" playsinline autoplay muted></video>
     </div>
 
     <div class="buttons-container">
-        <button id="startButton" class="action-button">Start Scanner</button>
-        <button id="stopButton" class="action-button">Stop Scanner</button>
+        <button id="startButton" class="action-button">Start Skaner</button>
+        <button id="stopButton" class="action-button">Stop Skaner</button>
     </div>
     
-    <p id="result">Ready to scan...</p>
+    <p id="result">Gotowy do skanowania...</p>
 
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
     <script>
         const codeReader = new ZXing.BrowserMultiFormatReader();
-        const videoElement = document.getElementById('scanner-video');
         const resultElement = document.getElementById('result');
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
+        
+        let rearCameraId = null; // Dodana zmienna do przechowywania ID kamery
 
         function startScanner() {
-            codeReader.getVideoInputDevices()
-                .then((videoInputDevices) => {
-                    const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear'));
-                    const selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+            // Sprawdź, czy już znamy ID tylnej kamery
+            if (rearCameraId) {
+                // Użyj zapisanego ID bez ponownego wyszukiwania
+                codeReader.decodeFromVideoDevice(rearCameraId, 'scanner-video', onScanResult);
+                updateUIForScanning();
+            } else {
+                // Jeśli to pierwsze uruchomienie, znajdź ID kamery
+                codeReader.getVideoInputDevices()
+                    .then((videoInputDevices) => {
+                        const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear'));
+                        
+                        // Zapisz znaleziony ID do globalnej zmiennej
+                        rearCameraId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-                    codeReader.decodeFromVideoDevice(selectedDeviceId, 'scanner-video', (result, err) => {
-                        if (result) {
-                            resultElement.textContent = `Scanned code: ${result.getText()}`;
-                            resultElement.style.color = '#00ff00';
-                            console.log('Scanned code:', result.getText());
-                            stopScanner();
-                        }
-                        if (err && !(err instanceof ZXing.NotFoundException)) {
-                            console.error('Scanning error:', err);
-                            resultElement.textContent = 'An error occurred during scanning.';
-                            resultElement.style.color = '#f44336';
-                        }
+                        codeReader.decodeFromVideoDevice(rearCameraId, 'scanner-video', onScanResult);
+                        updateUIForScanning();
+                    })
+                    .catch((err) => {
+                        console.error('Błąd dostępu do kamery:', err);
+                        resultElement.textContent = 'Błąd: nie można uzyskać dostępu do kamery.';
+                        resultElement.style.color = '#f44336';
                     });
+            }
+        }
 
-                    startButton.style.display = 'none';
-                    stopButton.style.display = 'inline-block';
-                    resultElement.textContent = 'Scanning...';
-                    resultElement.style.color = '#f0f0f0';
-                })
-                .catch((err) => {
-                    console.error('Error getting video devices:', err);
-                    resultElement.textContent = 'Error: Could not access the camera. Please check your browser permissions.';
-                    resultElement.style.color = '#f44336';
-                });
+        function onScanResult(result, err) {
+            if (result) {
+                resultElement.textContent = `Zeskanowany kod: ${result.getText()}`;
+                resultElement.style.color = '#00ff00';
+                console.log('Zeskanowany kod:', result.getText());
+                stopScanner();
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error('Błąd skanowania:', err);
+                resultElement.textContent = 'Wystąpił błąd podczas skanowania.';
+                resultElement.style.color = '#f44336';
+            }
+        }
+
+        function updateUIForScanning() {
+            startButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+            resultElement.textContent = 'Skanowanie...';
+            resultElement.style.color = '#f0f0f0';
         }
 
         function stopScanner() {
